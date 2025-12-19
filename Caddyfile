@@ -1,0 +1,30 @@
+# Caddyfile for zin - Minimal PMTiles Tile Server
+# Serves PMTiles files with HTTP Range support from /home/zin/zin
+
+zin.local {
+	# Document root
+	root * /home/zin/zin
+	
+	# Enable file server with browse
+	file_server browse
+	
+	# CORS headers for tile serving
+	# NOTE: Access-Control-Allow-Origin "*" allows any origin to access tiles.
+	# This is appropriate for a public, read-only tile server.
+	# If you need to restrict access, replace "*" with specific origin(s), e.g.:
+	# Access-Control-Allow-Origin https://example.com
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Methods "GET, OPTIONS"
+		Access-Control-Allow-Headers "Range"
+	}
+	
+	# Enable gzip compression
+	encode gzip
+	
+	# Logging
+	log {
+		output file /var/log/caddy/zin.log
+		format json
+	}
+}
