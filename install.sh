@@ -62,7 +62,11 @@ chmod 755 /home/zin/zin
 echo ""
 echo "Step 4: Downloading and installing Caddyfile..."
 # Download Caddyfile from GitHub Pages
-curl -fsSL https://unvt.github.io/zin/Caddyfile -o /etc/caddy/Caddyfile
+if ! curl -fsSL https://unvt.github.io/zin/Caddyfile -o /etc/caddy/Caddyfile; then
+  echo "Error: Failed to download Caddyfile"
+  echo "You may need to create /etc/caddy/Caddyfile manually"
+  exit 1
+fi
 chmod 644 /etc/caddy/Caddyfile
 
 # Create log directory
