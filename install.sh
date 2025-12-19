@@ -23,6 +23,12 @@ echo "Detected architecture: $ARCH"
 if [ "$ARCH" != "armv6l" ] && [ "$ARCH" != "armv7l" ] && [ "$ARCH" != "aarch64" ]; then
   echo "Warning: This script is designed for Raspberry Pi (armv6l/armv7l/aarch64)"
   echo "Current architecture: $ARCH"
+  # If stdin is not a TTY (e.g., script is piped from curl), avoid hanging on an interactive prompt.
+  if [ ! -t 0 ]; then
+    echo "Non-interactive shell detected (e.g., piped from curl)."
+    echo "Aborting installation on unsupported architecture."
+    exit 1
+  fi
   read -p "Continue anyway? (y/N) " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -57,15 +63,57 @@ fi
 # Create zin directory for PMTiles files
 mkdir -p /home/zin/zin
 chown -R zin:zin /home/zin/zin
-chmod 755 /home/zin/zin
+
+# Allow the caddy service user to read files in /home/zin/zin via the zin group
+if id -u caddy > /dev/null 2>&1; then
+  usermod -aG zin caddy
+else
+  echo "Warning: caddy user not found; adjust permissions for /home/zin/zin manually if needed."
+fi
+
+# Restrict access so only zin and members of the zin group (e.g., caddy) can read the directory
+chmod 750 /home/zin/zin
 
 echo ""
 echo "Step 4: Downloading and installing Caddyfile..."
-# Download Caddyfile from GitHub Pages
+# Ensure Caddy configuration directory exists
+mkdir -p /etc/caddy
+# Download Caddyfile from GitHub Pages, or fall back to a built-in default
 if ! curl -fsSL https://unvt.github.io/zin/Caddyfile -o /etc/caddy/Caddyfile; then
-  echo "Error: Failed to download Caddyfile"
-  echo "You may need to create /etc/caddy/Caddyfile manually"
-  exit 1
+  echo "Warning: Failed to download Caddyfile from remote source."
+  echo "Using built-in fallback Caddyfile configuration."
+  cat <<'EOF' > /etc/caddy/Caddyfile
+# Caddyfile for zin - Minimal PMTiles Tile Server
+# Serves PMTiles files with HTTP Range support from /home/zin/zin
+
+zin.local {
+	# Document root
+	root * /home/zin/zin
+	
+	# Enable file server with browse
+	file_server browse
+	
+	# CORS headers for tile serving
+	# NOTE: Access-Control-Allow-Origin "*" allows any origin to access tiles.
+	# This is appropriate for a public, read-only tile server.
+	# If you need to restrict access, replace "*" with specific origin(s), e.g.:
+	# Access-Control-Allow-Origin https://example.com
+	header {
+		Access-Control-Allow-Origin *
+		Access-Control-Allow-Methods "GET, OPTIONS"
+		Access-Control-Allow-Headers "Range"
+	}
+	
+	# Enable gzip compression
+	encode gzip
+	
+	# Logging
+	log {
+		output file /var/log/caddy/zin.log
+		format json
+	}
+}
+EOF
 fi
 chmod 644 /etc/caddy/Caddyfile
 

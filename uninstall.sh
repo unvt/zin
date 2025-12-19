@@ -42,13 +42,35 @@ rm -rf /etc/caddy
 rm -rf /var/log/caddy
 
 echo ""
-read -p "Remove zin user and data directory /home/zin? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+# Determine whether to remove the zin user and data directory.
+# If ZIN_REMOVE_USER is set, use it as the answer (non-interactive mode).
+# Otherwise, prompt only when stdin is a TTY; default to "no" when non-interactive.
+if [ -n "${ZIN_REMOVE_USER:-}" ]; then
+  REPLY="$ZIN_REMOVE_USER"
+else
+  if [ -t 0 ]; then
+    read -p "Remove zin user and data directory /home/zin? (y/N) " -n 1 -r
+    echo
+  else
+    echo "Non-interactive input detected; keeping zin user and data directory by default."
+    REPLY="n"
+  fi
+fi
+if [[ "$REPLY" =~ ^[Yy]$ ]]; then
   echo "Removing zin user and home directory..."
   if id -u zin > /dev/null 2>&1; then
-    userdel -r zin 2>/dev/null || true
-    echo "✓ zin user removed"
+    if pgrep -u zin > /dev/null 2>&1; then
+      echo "Warning: Cannot remove 'zin' user because there are processes still running as that user."
+      echo "Please stop these processes and run this uninstallation again, or remove the user manually:"
+      echo "  sudo userdel -r zin"
+    else
+      if ! userdel -r zin 2>/dev/null; then
+        echo "Warning: Failed to remove 'zin' user and home directory."
+        echo "You may need to manually run: sudo userdel -r zin"
+      else
+        echo "✓ zin user removed"
+      fi
+    fi
   fi
 else
   echo "Keeping zin user and data directory"

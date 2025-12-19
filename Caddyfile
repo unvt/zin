@@ -9,6 +9,10 @@ zin.local {
 	file_server browse
 	
 	# CORS headers for tile serving
+	# NOTE: Access-Control-Allow-Origin "*" allows any origin to access tiles.
+	# This is appropriate for a public, read-only tile server.
+	# If you need to restrict access, replace "*" with specific origin(s), e.g.:
+	# Access-Control-Allow-Origin https://example.com
 	header {
 		Access-Control-Allow-Origin *
 		Access-Control-Allow-Methods "GET, OPTIONS"
